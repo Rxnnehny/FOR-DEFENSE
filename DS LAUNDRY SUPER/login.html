@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>DS Laundry — Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+  <!-- Supabase SDK (replaces the three Firebase compat scripts) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="responsive fit .js"></script>
+  <script src="offline-queue.js"></script>
+  <script src="supabase-config.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      min-height: 100vh; min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow-x: hidden; overflow-y: auto;   /* short/landscape phones can scroll to the card */
+      -webkit-text-size-adjust: 100%;
+      background: #071232;
+    }
+
+    /* ── BACKGROUND IMAGE (login only) ── */
+    .bg-image {
+      position: fixed; inset: 0; z-index: 0;
+      background: url('blue_bubbles_bg.png') center center / cover no-repeat;
+      background-color: #071232; /* fallback tint while the image loads */
+    }
+    .bg-overlay {
+      position: fixed; inset: 0; z-index: 1;
+      background: linear-gradient(135deg,
+        rgba(7,18,50,.88) 0%,
+        rgba(17,32,68,.82) 40%,
+        rgba(27,111,216,.55) 100%);
+    }
+    /* Animated floating bubbles */
+    .bubble {
+      position: fixed; border-radius: 50%;
+      background: rgba(255,255,255,.06);
+      animation: float linear infinite;
+      z-index: 2; pointer-events: none;
+    }
+    @keyframes float {
+      0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: .5; }
+      100% { transform: translateY(-20vh) scale(1.1); opacity: 0; }
+    }
+
+    /* ── CARD ── */
+    .login-wrap {
+      position: relative; z-index: 10;
+      width: 100%; max-width: 420px; min-width: 0;
+      padding: 20px; margin: auto;
+    }
+    .login-card {
+      background: rgba(255,255,255,.97);
+      border-radius: 24px;
+      box-shadow: 0 32px 80px rgba(7,18,50,.5), 0 8px 24px rgba(7,18,50,.3);
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    .card-top {
+      background: linear-gradient(135deg, #112044 0%, #1B6FD8 100%);
+      padding: 36px 36px 32px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .card-top::before {
+      content: ''; position: absolute; top: -40px; right: -40px;
+      width: 160px; height: 160px; border-radius: 50%;
+      background: rgba(255,255,255,.06);
+    }
+    .card-top::after {
+      content: ''; position: absolute; bottom: -30px; left: -30px;
+      width: 120px; height: 120px; border-radius: 50%;
+      background: rgba(255,255,255,.04);
+    }
+    .logo-wrap {
+      width: 72px; height: 72px;
+      border-radius: 18px;
+      background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      overflow: hidden;
+      position: relative; z-index: 1;
+    }
+    .logo-wrap img { width: 100%; height: 100%; object-fit: cover; border-radius: 18px; }
+    .logo-fallback {
+      width: 72px; height: 72px; border-radius: 18px;
+      background: linear-gradient(135deg,#1B6FD8,#7C3AED);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 27.5px; font-weight: 900; color: #fff;
+      margin: 0 auto 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      position: relative; z-index: 1;
+    }
+    .brand-h1 { font-size: 21.5px; font-weight: 900; color: #fff; letter-spacing: -.02em; position: relative; z-index: 1; }
+    .brand-sub { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .12em; margin-top: 4px; position: relative; z-index: 1; }
+
+    /* ── FORM ── */
+    .card-body { padding: 32px 36px 36px; }
+    .login-h2 { font-size: 19px; font-weight: 800; color: #1A2B52; margin-bottom: 6px; }
+    .login-sub { font-size: 14.5px; color: #5A6B8A; margin-bottom: 28px; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      display: block; font-size: 14px; font-weight: 700;
+      color: #1A2B52; margin-bottom: 6px; letter-spacing: .01em;
+    }
+    .input-wrap { position: relative; }
+    .input-icon {
+      position: absolute; left: 13px; top: 50%; transform: translateY(-50%);
+      font-size: 17px; pointer-events: none; opacity: .6;
+    }
+    .pw-toggle {
+      position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      font-size: 16px; padding: 8px; line-height: 1;
+      opacity: .55; transition: opacity .15s;
+    }
+    .pw-toggle:hover { opacity: .9; }
+    .form-control {
+      width: 100%; padding: 11px 13px 11px 40px;
+      background: #F3F6FC; border: 1.5px solid #DDE4F0;
+      border-radius: 10px;
+      font-family: 'Outfit', sans-serif; font-size: 15.5px; color: #1A2B52;
+      outline: none; transition: border-color .15s, box-shadow .15s;
+    }
+    .form-control:focus { border-color: #1B6FD8; background: #fff; box-shadow: 0 0 0 3px rgba(27,111,216,.12); }
+    .form-control::placeholder { color: #8B98B4; }
+
+    .error-box {
+      display: none; background: #FEF2F2; border: 1px solid #FECACA;
+      color: #991B1B; font-size: 14.5px; font-weight: 500;
+      padding: 10px 13px; border-radius: 9px; margin-bottom: 16px;
+    }
+    .error-box.show { display: block; }
+
+    .login-btn {
+      width: 100%; padding: 13px;
+      background: linear-gradient(135deg, #1B6FD8, #1352A8);
+      color: #fff; font-family: 'Outfit', sans-serif;
+      font-size: 15.5px; font-weight: 700;
+      border: none; border-radius: 10px; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(27,111,216,.4);
+      transition: all .2s; position: relative;
+    }
+    .login-btn:hover { background: linear-gradient(135deg,#1352A8,#0D3D82); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(27,111,216,.5); }
+    .login-btn:active { transform: translateY(0); }
+    .login-btn:disabled { opacity: .65; cursor: not-allowed; transform: none; }
+    .btn-spinner {
+      display: none; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3); border-top-color: #fff;
+      border-radius: 50%; animation: spin .7s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .login-footer {
+      text-align: center; margin-top: 22px;
+      font-size: 13.5px; color: #8B98B4;
+    }
+    .login-footer strong { color: #1A2B52; }
+
+    /* ── BRANCH BADGES ── */
+    .branch-badges {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      justify-content: center; margin-top: 18px;
+    }
+    .branch-badge {
+      font-size: 11.5px; font-weight: 700; padding: 3px 10px;
+      border-radius: 12px; color: #fff;
+    }
+
+    @media (max-width: 480px) {
+      .login-wrap { padding: 14px; }
+      .card-top  { padding: 28px 24px 24px; }
+      .card-body { padding: 24px 24px 28px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Background (login page only) -->
+<div class="bg-image"></div>
+<div class="bg-overlay"></div>
+
+<!-- Floating Bubbles -->
+<div class="bubble" style="width:60px;height:60px;left:10%;animation-duration:14s;animation-delay:0s"></div>
+<div class="bubble" style="width:40px;height:40px;left:25%;animation-duration:18s;animation-delay:3s"></div>
+<div class="bubble" style="width:80px;height:80px;left:50%;animation-duration:12s;animation-delay:1s"></div>
+<div class="bubble" style="width:30px;height:30px;left:70%;animation-duration:16s;animation-delay:5s"></div>
+<div class="bubble" style="width:50px;height:50px;left:85%;animation-duration:20s;animation-delay:2s"></div>
+<div class="bubble" style="width:24px;height:24px;left:40%;animation-duration:11s;animation-delay:7s"></div>
+
+<!-- Login Card -->
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="card-top">
+      <div class="logo-wrap">
+        <img src="LOGO.jpg" alt="DS" onerror="this.parentElement.style.display='none';document.getElementById('logo-fallback').style.display='flex'"/>
+      </div>
+      <div class="logo-fallback" id="logo-fallback" style="display:none">DS</div>
+      <div class="brand-h1">Danny &amp; Sharon</div>
+      <div class="brand-sub">Laundry Management System</div>
+    </div>
+
+    <div class="card-body">
+      <div class="login-h2">Welcome back!</div>
+      <div class="login-sub">Sign in to your branch dashboard</div>
+
+      <div class="error-box" id="error-box" role="alert"></div>
+
+      <div class="form-group">
+        <label class="form-label" for="email">Email Address</label>
+        <div class="input-wrap">
+          <span class="input-icon">📧</span>
+          <input type="email" class="form-control" id="email" placeholder="you@example.com" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()"/>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <div class="input-wrap">
+          <span class="input-icon">🔒</span>
+          <input type="password" class="form-control" id="password" style="padding-right:38px" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+          <button type="button" class="pw-toggle" id="pw-toggle" onclick="togglePasswordVisibility()" aria-label="Show password" title="Show password">👁️</button>
+        </div>
+      </div>
+
+      <button class="login-btn" id="login-btn" onclick="doLogin()">
+        <span id="btn-text">Sign In</span>
+        <div class="btn-spinner" id="btn-spinner"></div>
+      </button>
+
+      <div class="login-footer">
+        <strong>DS Laundry</strong> — Multi-Branch Management<br/>
+        <div class="branch-badges" id="branch-badges"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function renderBranchBadges() {
+  const el = document.getElementById('branch-badges');
+  if (!el || !window.DS_BRANCHES) return;
+  el.innerHTML = DS_BRANCHES.map(b =>
+    `<span class="branch-badge" style="background:${b.color}">${b.name}</span>`
+  ).join('');
+})();
+
+function togglePasswordVisibility() {
+  const input = document.getElementById('password');
+  const btn = document.getElementById('pw-toggle');
+  const showing = input.type === 'password';
+  input.type = showing ? 'text' : 'password';
+  btn.textContent = showing ? '🙈' : '👁️';
+  btn.setAttribute('aria-label', showing ? 'Hide password' : 'Show password');
+  btn.title = showing ? 'Hide password' : 'Show password';
+}
+
+firebase.auth().onAuthStateChanged(async user => {
+  if (!user) return;
+  try {
+    const profile = await getUserProfile(user.uid);
+    if (!profile) { firebase.auth().signOut(); return; }
+    window.location.href = profile.role === 'admin' ? 'admin.html' : 'index.html';
+  } catch(e) { firebase.auth().signOut(); }
+});
+
+async function doLogin() {
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const errBox   = document.getElementById('error-box');
+  const btn      = document.getElementById('login-btn');
+  const spinner  = document.getElementById('btn-spinner');
+  const btnText  = document.getElementById('btn-text');
+
+  errBox.classList.remove('show');
+
+  if (!email || !password) {
+    errBox.textContent = 'Please enter your email and password.';
+    errBox.classList.add('show');
+    return;
+  }
+
+  btn.disabled = true;
+  btnText.style.display = 'none';
+  spinner.style.display = 'block';
+
+  try {
+    await firebase.auth().signInWithEmailAndPassword(email, password);
+  } catch(e) {
+    const msgs = {
+      'auth/user-not-found':  'No account found with this email.',
+      'auth/wrong-password':  'Incorrect password. Please try again.',
+      'auth/invalid-email':   'Invalid email address.',
+      'auth/too-many-requests':'Too many attempts. Please wait before trying again.',
+      'auth/network-request-failed': 'Network error. Check your connection.',
+    };
+    errBox.textContent = msgs[e.code] || 'Login failed. Please try again.';
+    errBox.classList.add('show');
+    btn.disabled = false;
+    btnText.style.display = '';
+    spinner.style.display = 'none';
+  }
+}
+
+</script>
+</body>
+</html>
